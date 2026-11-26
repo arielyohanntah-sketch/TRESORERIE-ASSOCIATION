@@ -89,6 +89,7 @@ public static class Theme
     public const string IcoDepense = "";
     public const string IcoTrombone = "";
     public const string IcoDossier = "";
+    public const string IcoImprimer = "";   // imprimante (écrit avec son code pour rester lisible)
 
     // Les icônes déjà dessinées sont gardées en mémoire pour ne pas les redessiner à chaque fois
     private static readonly Dictionary<(string, int, int), Bitmap> CacheGlyphes = new();

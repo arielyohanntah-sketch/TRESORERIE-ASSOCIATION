@@ -51,6 +51,10 @@ public partial class BudgetVue : VueBase
             if (_grille.Columns.Contains("Centre")) _grille.Columns["Centre"]!.FillWeight = 140;
         };
         _btnGenerer.Click += (_, _) => Executer(Charger, false);
+        // Le rapport se recalcule dès qu'on change un paramètre (après le premier chargement)
+        _exercice.SelectedIndexChanged += (_, _) => { if (_initialise) Executer(Charger, false); };
+        _au.ValueChanged += (_, _) => { if (_initialise) Executer(Charger, false); };
+        _brouillons.CheckedChanged += (_, _) => { if (_initialise) Executer(Charger, false); };
     }
 
     public override IEnumerable<ToolStripItem> Outils()

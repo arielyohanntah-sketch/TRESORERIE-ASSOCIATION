@@ -51,6 +51,8 @@ public partial class SaisieMouvementForm : DialogueBase
     public (string Titre, string Message, TypeNotification Type)? Resultat { get; private set; }
     // Id du mouvement enregistré (pour le surligner dans la liste)
     public int? IdEnregistre { get; private set; }
+    // Vrai après la validation d'une recette : la fenêtre principale propose d'imprimer le reçu
+    public bool ProposerRecu { get; private set; }
 
     /// <summary>Constructeur utilisé par le concepteur de Visual Studio.</summary>
     public SaisieMouvementForm() : this(new MouvementSaisie()) { }
@@ -112,6 +114,10 @@ public partial class SaisieMouvementForm : DialogueBase
             CancelButton = _btnFermer;
             // Un valideur peut valider le brouillon d'un autre sans pouvoir le modifier
             _btnValiderBrouillon.Visible = m.Statut == "BROUILLON" && m.Id != null && Session.Peut("VALIDER");
+            // Opération validée (ou annulée) : on peut imprimer (ou réimprimer) son reçu
+            _btnRecu.Image = Theme.Glyphe(Theme.IcoImprimer, Theme.Nuit, 16);
+            _btnRecu.TextImageRelation = TextImageRelation.ImageBeforeText;
+            _btnRecu.Visible = m.Id != null && m.Statut is "VALIDE" or "ANNULE";
         }
         else
         {
@@ -129,6 +135,7 @@ public partial class SaisieMouvementForm : DialogueBase
         _btnValider.Click += (_, _) => Enregistrer(true);
         _btnBrouillon.Click += (_, _) => Enregistrer(false);
         _btnValiderBrouillon.Click += (_, _) => { if (_m.Id is int id) ValiderBrouillon(id); };
+        _btnRecu.Click += (_, _) => { if (_m.Id is int id) ApercuRecuForm.Afficher(this, id); };
         _btnReste.Click += (_, _) => MettreLeReste();
         _btnSupprimerV.Click += (_, _) =>
         {
@@ -314,6 +321,7 @@ public partial class SaisieMouvementForm : DialogueBase
         {
             Depot.ValiderMouvement(id);
             IdEnregistre = id;
+            ProposerRecu = _m.Type == "RECETTE";
             Resultat = ("Opération validée", $"Pièce n° {Depot.NumeroPiece(id)} · saisie par {_m.NomAuteur}", TypeNotification.Succes);
             DialogResult = DialogResult.OK;
             Close();
@@ -398,6 +406,7 @@ public partial class SaisieMouvementForm : DialogueBase
             Cursor = Cursors.WaitCursor;
             int id = Depot.EnregistrerMouvement(_m, valider);
             IdEnregistre = id;
+            ProposerRecu = valider && _m.Type == "RECETTE";
             string nature = _m.Type == "RECETTE" ? "Recette" : "Dépense";
             Resultat = valider
                 ? ($"{nature} validée", $"Pièce n° {Depot.NumeroPiece(id)} · {Theme.Montant(_m.Montant)} FCFA", TypeNotification.Succes)

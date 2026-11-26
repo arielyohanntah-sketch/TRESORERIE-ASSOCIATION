@@ -302,7 +302,15 @@ public partial class MainForm : Form
             return;
         }
         using var f = new SaisieMouvementForm(type);
-        if (f.ShowDialog(this) == DialogResult.OK) ApresModification(f.Resultat, f.IdEnregistre);
+        if (f.ShowDialog(this) == DialogResult.OK) ApresSaisie(f);
+    }
+
+    // Après la fenêtre de saisie : rafraîchit, notifie, puis propose le reçu d'une recette qui vient d'être validée
+    private void ApresSaisie(SaisieMouvementForm f)
+    {
+        ApresModification(f.Resultat, f.IdEnregistre);
+        if (f.ProposerRecu && f.IdEnregistre is int id && Ui.Confirmer("Recette validée.\n\nImprimer le reçu pour la personne qui a payé ?", "Reçu"))
+            ApercuRecuForm.Afficher(this, id);
     }
 
     /// <summary>Ouvre un mouvement existant (double-clic dans une liste) en consultation ou en modification.</summary>
@@ -314,7 +322,7 @@ public partial class MainForm : Form
         catch (Exception ex) { Ui.Erreur(ex); return; }
         using (f)
         {
-            if (f.ShowDialog(this) == DialogResult.OK) ApresModification(f.Resultat, f.IdEnregistre);
+            if (f.ShowDialog(this) == DialogResult.OK) ApresSaisie(f);
         }
     }
 

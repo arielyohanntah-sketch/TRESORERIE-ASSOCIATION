@@ -82,6 +82,7 @@ namespace SLN_TRESORERIE_ASSO.Forms
             this._btnBrouillon = new System.Windows.Forms.Button();
             this._btnFermer = new System.Windows.Forms.Button();
             this._btnValiderBrouillon = new System.Windows.Forms.Button();
+            this._btnRecu = new System.Windows.Forms.Button();
             this._lblObligatoire = new System.Windows.Forms.Label();
             this.Entete.SuspendLayout();
             this.Corps.SuspendLayout();
@@ -535,6 +536,7 @@ namespace SLN_TRESORERIE_ASSO.Forms
             this.Pied.Controls.Add(this._btnValider);
             this.Pied.Controls.Add(this._btnBrouillon);
             this.Pied.Controls.Add(this._btnFermer);
+            this.Pied.Controls.Add(this._btnRecu);
             this.Pied.Controls.Add(this._btnValiderBrouillon);
             this.Pied.Controls.Add(this._lblObligatoire);
             //
@@ -613,6 +615,20 @@ namespace SLN_TRESORERIE_ASSO.Forms
             this._btnValiderBrouillon.Text = "Valider ce brouillon";
             this._btnValiderBrouillon.UseVisualStyleBackColor = false;
             this._btnValiderBrouillon.Visible = false;
+            //
+            // _btnRecu
+            //
+            this._btnRecu.BackColor = System.Drawing.Color.FromArgb(253, 253, 253);
+            this._btnRecu.Cursor = System.Windows.Forms.Cursors.Hand;
+            this._btnRecu.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(168, 168, 168);
+            this._btnRecu.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this._btnRecu.Margin = new System.Windows.Forms.Padding(8, 0, 0, 0);
+            this._btnRecu.Name = "_btnRecu";
+            this._btnRecu.Size = new System.Drawing.Size(150, 32);
+            this._btnRecu.TabIndex = 15;
+            this._btnRecu.Text = "Imprimer le reçu";
+            this._btnRecu.UseVisualStyleBackColor = false;
+            this._btnRecu.Visible = false;
             //
             // _lblObligatoire
             //
@@ -699,6 +715,7 @@ namespace SLN_TRESORERIE_ASSO.Forms
         private System.Windows.Forms.Button _btnBrouillon;
         private System.Windows.Forms.Button _btnFermer;
         private System.Windows.Forms.Button _btnValiderBrouillon;
+        private System.Windows.Forms.Button _btnRecu;
         private System.Windows.Forms.Label _lblObligatoire;
     }
 }

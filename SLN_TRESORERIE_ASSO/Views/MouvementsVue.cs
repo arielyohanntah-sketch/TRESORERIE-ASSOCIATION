@@ -10,8 +10,11 @@
 //
 //  Contrôles (MouvementsVue.Designer.cs) :
 //      _entete, _info          titre et bandeau « espace personnel »
-//      _du, _au, _compte, _type, _statut, _recherche, _btnFiltrer   filtres
+//      _du, _au, _compte, _type, _statut, _recherche   filtres, appliqués DÈS qu'on les
+//                              change (la recherche 0,4 s après la dernière touche) ;
+//      _btnFiltrer / _btnEffacer  relancer tout de suite / revenir aux filtres de départ
 //      _grille                 liste (double-clic = ouvrir) ; _totaux = totaux en bas
+//  Bouton « Imprimer le reçu » : aperçu du reçu de l'opération sélectionnée (validée).
 //  ⚠ L'ordre des éléments des listes _type et _statut (propriété Items dans le
 //    concepteur) doit correspondre aux index utilisés dans Charger().
 // =====================================================================================
@@ -34,6 +37,12 @@ public partial class MouvementsVue : VueBase
     private readonly bool _mesSaisies;
     // La liste des comptes n'est chargée qu'au premier affichage
     private bool _chargementInitial = true;
+    // Vrai pendant « Effacer les filtres » : évite de recharger la liste à chaque champ remis à zéro
+    private bool _remiseAZero;
+    // Attend que l'utilisateur ait fini de taper avant de lancer la recherche (0,4 s)
+    private readonly System.Windows.Forms.Timer _minuterieRecherche = new() { Interval = 400 };
+    // Filtres de départ (pour « Effacer les filtres »)
+    private readonly int _typeDepart, _statutDepart;
 
     public override string Titre => _titre;
 
@@ -57,20 +66,62 @@ public partial class MouvementsVue : VueBase
         // Filtres par défaut : toute l'année en cours
         _du.Value = new DateTime(DateTime.Today.Year, 1, 1);
         _au.Value = new DateTime(DateTime.Today.Year, 12, 31);
-        _type.SelectedIndex = type == "RECETTE" ? 1 : type == "DEPENSE" ? 2 : 0;
-        _statut.SelectedIndex = statut == "BROUILLON" ? 1 : 0;
+        _typeDepart = type == "RECETTE" ? 1 : type == "DEPENSE" ? 2 : 0;
+        _statutDepart = statut == "BROUILLON" ? 1 : 0;
+        _type.SelectedIndex = _typeDepart;
+        _statut.SelectedIndex = _statutDepart;
 
         Theme.StyleGrille(_grille);
         Theme.ColorerOperations(_grille);
+        // Libellé plus large (c'est la colonne la plus utile), Type plus étroit
+        _grille.DataBindingComplete += (_, _) =>
+        {
+            if (_grille.Columns.Contains("Libellé")) { _grille.Columns["Libellé"]!.FillWeight = 230; _grille.Columns["Libellé"]!.MinimumWidth = Theme.Px(170); }
+            if (_grille.Columns.Contains("Type")) _grille.Columns["Type"]!.FillWeight = 50;
+        };
         // Double-clic sur une ligne = ouvrir l'opération
         _grille.CellDoubleClick += (_, e) => { if (e.RowIndex >= 0) Ouvrir(); };
 
-        // Bouton « Filtrer » ou touche Entrée dans la zone de recherche
-        _btnFiltrer.Click += (_, _) => Executer(Charger, false);
+        // Les filtres s'appliquent tout seuls dès qu'on change une valeur
+        _du.ValueChanged += (_, _) => FiltreModifie();
+        _au.ValueChanged += (_, _) => FiltreModifie();
+        _compte.SelectedIndexChanged += (_, _) => FiltreModifie();
+        _type.SelectedIndexChanged += (_, _) => FiltreModifie();
+        _statut.SelectedIndexChanged += (_, _) => FiltreModifie();
+        // Recherche : lancée 0,4 s après la dernière touche tapée (pas à chaque lettre)
+        _recherche.TextChanged += (_, _) => { _minuterieRecherche.Stop(); _minuterieRecherche.Start(); };
+        _minuterieRecherche.Tick += (_, _) => { _minuterieRecherche.Stop(); FiltreModifie(); };
+        Disposed += (_, _) => _minuterieRecherche.Dispose();
+
+        // Bouton « Filtrer » ou touche Entrée : relance tout de suite
+        _btnFiltrer.Click += (_, _) => { _minuterieRecherche.Stop(); Executer(Charger, false); };
         _recherche.KeyDown += (_, e) =>
         {
-            if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Executer(Charger, false); }
+            if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; _minuterieRecherche.Stop(); Executer(Charger, false); }
         };
+        _btnEffacer.Click += (_, _) => EffacerFiltres();
+    }
+
+    // Un filtre a changé : on recharge la liste (sauf pendant le premier chargement ou la remise à zéro)
+    private void FiltreModifie()
+    {
+        if (_chargementInitial || _remiseAZero) return;
+        Executer(Charger, false);
+    }
+
+    // Bouton « Effacer les filtres » : revient aux filtres de départ de l'écran
+    private void EffacerFiltres()
+    {
+        _remiseAZero = true;
+        _du.Value = new DateTime(DateTime.Today.Year, 1, 1);
+        _au.Value = new DateTime(DateTime.Today.Year, 12, 31);
+        if (_compte.Items.Count > 0) _compte.SelectedIndex = 0;
+        _type.SelectedIndex = _typeDepart;
+        _statut.SelectedIndex = _statutDepart;
+        _recherche.Clear();
+        _minuterieRecherche.Stop();
+        _remiseAZero = false;
+        Executer(Charger, false);
     }
 
     /// <summary>Seuls les boutons autorisés pour le rôle connecté sont affichés.</summary>
@@ -83,6 +134,7 @@ public partial class MouvementsVue : VueBase
             outils.Add(Theme.Outil("Nouvelle dépense", Theme.IcoDepense, Theme.Rouge, (_, _) => Principale?.NouvelleOperation("DEPENSE")));
         }
         outils.Add(Theme.Outil("Ouvrir", Theme.IcoModifier, Theme.Accent, (_, _) => Ouvrir()));
+        outils.Add(Theme.Outil("Imprimer le reçu", Theme.IcoImprimer, Theme.Nuit, (_, _) => ImprimerRecu()));
         outils.Add(Separateur());
         if (Session.Peut("VALIDER"))
         {
@@ -156,6 +208,14 @@ public partial class MouvementsVue : VueBase
     private void Ouvrir()
     {
         if (Selection() is { } s) Principale?.OuvrirMouvement(s.Id);
+    }
+
+    // Bouton « Imprimer le reçu » : aperçu du reçu (recette) ou du bon de dépense de la ligne sélectionnée
+    private void ImprimerRecu()
+    {
+        if (Selection() is not { } s) return;
+        if (s.Statut == "BROUILLON") { Ui.Info("Le reçu n'est disponible qu'une fois l'opération validée (il porte le numéro de pièce)."); return; }
+        ApercuRecuForm.Afficher(FindForm(), s.Id);
     }
 
     // Bouton « Valider » : seulement pour un brouillon

@@ -63,6 +63,9 @@ public partial class ComptesVue : VueBase
             if (col == "Sortie") e.CellStyle!.ForeColor = Theme.Rouge;
         };
         _btnAfficher.Click += (_, _) => ChargerReleve();
+        // Le relevé se met à jour dès qu'on change une date (le bouton « Afficher » reste disponible)
+        _du.ValueChanged += (_, _) => ChargerReleve();
+        _au.ValueChanged += (_, _) => ChargerReleve();
     }
 
     // Boutons selon les droits : gérer les fiches (PARAMETRER), virement (OPERER), export, actualiser

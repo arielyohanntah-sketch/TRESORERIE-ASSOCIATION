@@ -82,6 +82,26 @@ public sealed class MouvementSaisie
     public List<LignePiece> Pieces { get; } = new();
 }
 
+/// <summary>Données d'un reçu imprimé (voir Depot.ChargerRecu et UI/ImpressionRecu.cs).</summary>
+public sealed class RecuMouvement
+{
+    public string NumeroPiece { get; set; } = "";
+    // Vrai = recette (reçu), faux = dépense (bon de dépense)
+    public bool Recette { get; set; }
+    public string Statut { get; set; } = "";
+    public DateTime Date { get; set; }
+    public decimal Montant { get; set; }
+    public string Libelle { get; set; } = "";
+    public string ModePaiement { get; set; } = "";
+    public string? Reference { get; set; }
+    public string? MotifAnnulation { get; set; }
+    public string Categorie { get; set; } = "";
+    public string Compte { get; set; } = "";
+    public string? Tiers { get; set; }
+    public string Auteur { get; set; } = "";
+    public DateTime DateSaisie { get; set; }
+}
+
 /// <summary>Toutes les requêtes métier de l'application.</summary>
 public static class Depot
 {
@@ -333,16 +353,24 @@ SELECT YEAR(date_mouvement) AS a, MONTH(date_mouvement) AS m,
 
     /// <summary>
     /// Liste des mouvements de l'écran « Opérations », filtrée par période, compte, type, statut et texte recherché.
+    /// La recherche porte sur le libellé, le n° de pièce, le tiers, la catégorie, le compte, la référence
+    /// externe et, si on tape un nombre, sur le montant exact (sans tenir compte des accents ni des majuscules).
     /// Un paramètre à null signifie « pas de filtre ». seulementMesSaisies = écran « Mes saisies ».
     /// Les brouillons des autres utilisateurs sont exclus sauf pour les valideurs (FiltreVisibilite).
     /// </summary>
     public static DataTable Mouvements(DateTime du, DateTime au, object? idCompte, string? type, string? statut, string recherche,
         bool seulementMesSaisies = false)
     {
+        // Texte recherché : les caractères % et _ (jokers de LIKE) sont cherchés tels quels
+        string q = recherche.Trim();
+        string motif = "%" + q.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+        // Si l'utilisateur tape un nombre (« 150000 », « 150 000 »), on cherche aussi ce montant exact
+        string chiffres = System.Text.RegularExpressions.Regex.IsMatch(q, @"^\d[\d\s  .]*$")
+            ? System.Text.RegularExpressions.Regex.Replace(q, @"[^\d]", "") : "";
         var p = new List<(string, object?)>
         {
             ("@du", du.Date), ("@au", au.Date), ("@cpt", idCompte is DBNull ? null : idCompte), ("@type", type), ("@st", statut),
-            ("@q", recherche.Trim()), ("@ql", "%" + recherche.Trim() + "%"), ("@seulmoi", seulementMesSaisies ? 1 : 0)
+            ("@q", q), ("@ql", motif), ("@qn", chiffres), ("@seulmoi", seulementMesSaisies ? 1 : 0)
         };
         p.AddRange(ParamsVisibilite());
         return Db.Table(@"
@@ -360,7 +388,9 @@ SELECT m.id_mouvement, m.type_mouvement,
    AND (@cpt IS NULL OR m.id_compte = @cpt)
    AND (@type IS NULL OR m.type_mouvement = @type)
    AND (@st IS NULL OR m.statut = @st)
-   AND (@q = '' OR m.libelle LIKE @ql OR m.numero_piece LIKE @ql OR t.nom LIKE @ql)
+   AND (@q = '' OR m.libelle LIKE @ql OR m.numero_piece LIKE @ql OR t.nom LIKE @ql
+        OR c.libelle LIKE @ql OR cp.libelle LIKE @ql OR m.reference_externe LIKE @ql
+        OR (@qn <> '' AND CAST(TRUNCATE(m.montant, 0) AS CHAR) = @qn))
    AND (@seulmoi = 0 OR m.id_utilisateur_saisie = @moi)
    AND " + FiltreVisibilite + @"
  ORDER BY m.date_mouvement DESC, m.id_mouvement DESC", p.ToArray());
@@ -538,6 +568,45 @@ VALUES (@id, @t, @r, @d, @mt, @f)",
         if (auteur != null && Convert.ToInt32(auteur) != Session.IdUtilisateur && !Session.EstAdmin)
             throw new InvalidOperationException("Seul l'auteur d'un brouillon peut le supprimer.");
         Db.Executer("DELETE FROM mouvement WHERE id_mouvement = @id", ("@id", id));
+    }
+
+    /// <summary>
+    /// Toutes les informations à imprimer sur le reçu (recette) ou le bon de dépense d'un mouvement :
+    /// libellés du compte, de la catégorie et du tiers en clair. Même règle de confidentialité que la liste.
+    /// </summary>
+    public static RecuMouvement ChargerRecu(int id)
+    {
+        var prm = new List<(string, object?)> { ("@id", id) };
+        prm.AddRange(ParamsVisibilite());
+        var dt = Db.Table(@"
+SELECT m.numero_piece, m.type_mouvement, m.statut, m.date_mouvement, m.montant, m.libelle, m.mode_paiement,
+       m.reference_externe, m.motif_annulation, m.created_at,
+       c.libelle AS categorie, cp.libelle AS compte, t.nom AS tiers, CONCAT(u.prenoms, ' ', u.nom) AS auteur
+  FROM mouvement m
+  JOIN categorie c   ON c.id_categorie = m.id_categorie
+  JOIN compte cp     ON cp.id_compte = m.id_compte
+  JOIN utilisateur u ON u.id_utilisateur = m.id_utilisateur_saisie
+  LEFT JOIN tiers t  ON t.id_tiers = m.id_tiers
+ WHERE m.id_mouvement = @id AND " + FiltreVisibilite, prm.ToArray());
+        if (dt.Rows.Count == 0) throw new InvalidOperationException("Ce mouvement n'existe pas ou n'est pas visible pour vous.");
+        var r = dt.Rows[0];
+        return new RecuMouvement
+        {
+            NumeroPiece = r["numero_piece"] as string ?? "",
+            Recette = r["type_mouvement"].ToString() == "RECETTE",
+            Statut = r["statut"].ToString()!,
+            Date = Convert.ToDateTime(r["date_mouvement"]),
+            Montant = Convert.ToDecimal(r["montant"]),
+            Libelle = r["libelle"].ToString()!,
+            ModePaiement = r["mode_paiement"].ToString()!,
+            Reference = r["reference_externe"] as string,
+            MotifAnnulation = r["motif_annulation"] as string,
+            Categorie = r["categorie"].ToString()!,
+            Compte = r["compte"].ToString()!,
+            Tiers = r["tiers"] as string,
+            Auteur = r["auteur"].ToString()!,
+            DateSaisie = Convert.ToDateTime(r["created_at"])
+        };
     }
 
     // ------------------------------------------------------------------ virements
