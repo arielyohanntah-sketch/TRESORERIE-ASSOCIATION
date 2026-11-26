@@ -1,0 +1,20 @@
+// =====================================================================================
+//  MODÈLE du fichier Data/Connexion.local.cs (mot de passe MySQL de VOTRE PC)
+// -------------------------------------------------------------------------------------
+//  1. Copiez ce fichier dans le même dossier sous le nom :  Connexion.local.cs
+//  2. Remplacez VOTRE_MOT_DE_PASSE par le mot de passe que vous tapez dans phpMyAdmin
+//     (laissez "" si vous n'avez pas de mot de passe, cas par défaut de WampServer).
+//  3. Régénérez la solution dans Visual Studio.
+//  Connexion.local.cs est exclu de Git : votre mot de passe ne part jamais sur GitHub.
+//  (Ce modèle est en .txt pour ne pas être compilé.)
+// =====================================================================================
+
+namespace SLN_TRESORERIE_ASSO.Data;
+
+public static partial class Connexion
+{
+    static partial void LireMotDePasse(ref string motDePasse)
+    {
+        motDePasse = "VOTRE_MOT_DE_PASSE";
+    }
+}

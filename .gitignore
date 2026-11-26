@@ -1,0 +1,9 @@
+# Fichiers générés par Visual Studio / la compilation
+.vs/
+bin/
+obj/
+*.user
+*.suo
+
+# Mot de passe MySQL personnel : ne jamais publier
+**/Data/Connexion.local.cs
