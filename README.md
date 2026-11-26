@@ -3,6 +3,16 @@
 Projet L2 — Base de données : gestion de la trésorerie d'une association
 (base MySQL + application Windows Forms en C# / .NET 10).
 
+## Informations académiques
+
+* **Université :** Institut Ivoirien de Technologies (IIT) — Grand Bassam, Côte d'Ivoire
+* **Classe :** Licence 2 (L2) — Informatique / Génie Logiciel
+* **Membres du groupe :**
+  * Tah Ariel Yohann
+  * N'Guetta Christ Emmanuel
+  * Atoukouvi Anne Christelle
+  * Konaté Karim
+
 ## Contenu du dépôt
 
 | Élément | Rôle |
